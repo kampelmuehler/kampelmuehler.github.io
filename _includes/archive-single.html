@@ -38,6 +38,12 @@
       <p class="page__meta"><i class="fa fa-clock-o" aria-hidden="true"></i> {% include read-time.html %}</p>
     {% endif %}
 
+		{% if post.authors %}
+          <p>{{ post.authors }}</p>
+        {% endif %}
+		{% if post.award %}
+          <p><b><font color="#cc9900">{{ post.award }}</font></b></p>
+        {% endif %}
         {% if post.collection == 'teaching' %}
           <p> {{ post.type }}, <i>{{ post.venue }}</i>, {{ post.date | default: "1900-01-01" | date: "%Y" }} </p>
         {% elsif post.collection == 'publications' %}
@@ -57,7 +63,7 @@
     {% elsif post.citation %}
       <p>Recommended citation: {{ post.citation }} </p>
     {% elsif post.paperurl %}
-      <p>Download <a href=" {{ post.paperurl }} "><u>here</u></a></p>
+      <p><a href=" {{ post.paperurl }} ">[pdf]</a></p>
     {% endif %}
 
   </article>
