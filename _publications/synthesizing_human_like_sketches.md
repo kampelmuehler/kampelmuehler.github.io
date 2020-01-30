@@ -8,6 +8,8 @@ date: 2020-03-02
 venue: '2020 IEEE Winter Conference on Applications of Computer Vision (WACV)'
 paperurl: '/files/synthesizing_human_like_sketches.pdf'
 citation: 
+redirect_from: 
+  - /sketches/
 ---
 [[pdf]]({{ site.baseurl }}/files/synthesizing_human_like_sketches.pdf)
 [[poster]]({{ site.baseurl }}/files/synthesizing_human_like_sketches_poster.pdf)
