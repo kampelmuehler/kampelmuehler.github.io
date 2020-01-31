@@ -11,6 +11,7 @@ award: Best Student Paper Award
 citation: 
 ---
 [[pdf]](https://arxiv.org/pdf/1802.07094)
+[[poster]]({{ site.baseurl }}/files/velocity_estimation_poster.pdf)
 
 ![sample image]({{ site.baseurl }}/images/velocity_estimation_sample.png)
 <br/><br/>
