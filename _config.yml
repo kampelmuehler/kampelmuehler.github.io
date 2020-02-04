@@ -87,9 +87,9 @@ author:
   employer         :
   pubmed           : 
   googlescholar    : "https://scholar.google.at/citations?user=XgtJoXQAAAAJ"
-  email            :
+  email            : "kampelmuehler@tugraz.at"
   researchgate     :  # example: "https://www.researchgate.net/profile/yourprofile"
-  uri              : "https://kampelmuehler.github.io"
+  uri              : # "https://kampelmuehler.github.io"
   bitbucket        :
   codepen          :
   dribbble         :
