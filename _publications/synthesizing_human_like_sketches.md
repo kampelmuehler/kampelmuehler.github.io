@@ -13,6 +13,7 @@ redirect_from:
 ---
 [[pdf]]({{ site.baseurl }}/files/synthesizing_human_like_sketches.pdf)
 [[poster]]({{ site.baseurl }}/files/synthesizing_human_like_sketches_poster.pdf)
+[[code]](https://github.com/kampelmuehler/synthesizing_human_like_sketches)
 
 ![sample image]({{ site.baseurl }}/images/synthesizing_human_like_sketches_sample.png)
 <br/><br/>
@@ -23,8 +24,7 @@ Bibtex:
 @inproceedings{kampelmuehler2020synthesizing,
   title={Synthesizing human-like sketches from natural images using a conditional convolutional decoder},
   author={Kampelm{\"u}hler, Moritz and Pinz, Axel},
-  booktitle={2020 IEEE Winter Conference on Applications of Computer Vision (WACV)},
-  year={2020},
-  organization={IEEE}
+  booktitle={IEEE Winter Conference on Applications of Computer Vision (WACV)},
+  year={2020}
 }
 ```
