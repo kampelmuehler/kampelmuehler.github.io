@@ -1,0 +1,394 @@
+---
+title: "Hex Map Selector"
+excerpt: "An interactive tool to create and export hexagonal regions on a map."
+collection: projects
+permalink: /projects/hex-map-selector/
+date: 2026-04-06
+---
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Hex Region</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .hex-poly {
+      cursor: grab !important;
+    }
+
+    .hex-poly:active {
+      cursor: grabbing !important;
+    }
+
+    .resize-handle {
+      cursor: nwse-resize !important;
+    }
+
+    #panel {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: white;
+      border-radius: 8px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
+      width: 190px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      font-size: 13px;
+      color: #222;
+    }
+
+    #panel strong {
+      font-size: 14px;
+    }
+
+    .row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .lbl {
+      display: flex;
+      justify-content: space-between;
+      color: #555;
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: #378add;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    button {
+      flex: 1;
+      padding: 6px 4px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: #f5f5f5;
+      cursor: pointer;
+      font-size: 11px;
+      color: #333;
+    }
+
+    button:hover {
+      background: #e8e8e8;
+    }
+
+    button.danger {
+      border-color: #f0a0a0;
+      color: #c00;
+    }
+
+    button.danger:hover {
+      background: #fff0f0;
+    }
+
+    #hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(0, 0, 0, .6);
+      color: #fff;
+      padding: 7px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #count {
+      font-size: 11px;
+      color: #888;
+      text-align: right;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <div id="panel">
+    <strong>Hex Region</strong>
+    <div class="row">
+      <div class="lbl"><span>Size</span><span><b id="sizeVal">1000</b> m</span></div>
+      <div style="font-size:10px;color:#888;">Drag <span style="color:#e74c3c;">&#9679;</span> handle on tile to resize
+      </div>
+    </div>
+    <div class="row">
+      <div class="lbl"><span>Rotation</span><span><b id="rotVal">0</b>°</span></div>
+      <input type="range" id="rotSlider" min="0" max="60" step="0.5" value="0">
+    </div>
+    <div id="count">0 tiles</div>
+    <div class="btn-row">
+      <button id="exportBtn">Export JSON</button>
+      <button id="importBtn">Import JSON</button>
+    </div>
+    <button class="danger" id="clearBtn">Clear all</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+  </div>
+  <div id="hint">Click on the map to place the first hex</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    const map = L.map('map').setView([48.2082, 16.3738], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let hexes = new Set();   // "q,r" flat-top axial coordinates
+    let gridCenter = null;        // { lat, lng }  — geographic anchor
+    let hexSize = 1000;        // metres (long diagonal = tip-to-tip = 2 × circumradius)
+    let rotation = 0;           // degrees  (0-60 covers all unique flat-top orientations)
+
+    // neighbour[i] = axial delta for the hex sharing edge (vertex i to vertex i+1)
+    const NBR = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
+
+    // Leaflet layer groups — redrawn on every geometry change
+    const hexLayer = L.layerGroup().addTo(map);
+    const handleLayer = L.layerGroup().addTo(map);
+    const resizeLayer = L.layerGroup().addTo(map);
+
+    // ── Geometry ───────────────────────────────────────────────────────────────
+    function mpp() {
+      const lat = (gridCenter ?? map.getCenter()).lat;
+      return 40075016.686 * Math.cos(lat * Math.PI / 180) / Math.pow(2, map.getZoom() + 8);
+    }
+
+    function hex2px(q, r) {
+      const sz = hexSize / mpp();               // long diagonal in pixels
+      const R = sz / 2;                         // circumradius in pixels
+      const a = rotation * Math.PI / 180;
+      const lx = R * 1.5 * q;
+      const ly = R * Math.sqrt(3) * (r + q / 2);
+      const cp = map.latLngToContainerPoint([gridCenter.lat, gridCenter.lng]);
+      return {
+        x: cp.x + lx * Math.cos(a) - ly * Math.sin(a),
+        y: cp.y + lx * Math.sin(a) + ly * Math.cos(a)
+      };
+    }
+
+    function hexVerts(q, r) {
+      const { x: cx, y: cy } = hex2px(q, r);
+      const R = hexSize / mpp() / 2;           // circumradius in pixels
+      const a = rotation * Math.PI / 180;
+      return Array.from({ length: 6 }, (_, i) => {
+        const ang = i * Math.PI / 3 + a;
+        return { x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
+      });
+    }
+
+    function px2ll(px) {
+      return map.containerPointToLatLng(L.point(px.x, px.y));
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────────────────
+    let dragging = false, dragStart = null, centerStart = null;
+    let resizing = false, resizeRefCenter = null;
+
+    function render() {
+      hexLayer.clearLayers();
+      handleLayer.clearLayers();
+      resizeLayer.clearLayers();
+      if (!gridCenter || hexes.size === 0) return;
+
+      const sz = hexSize / mpp();
+      const hr = Math.max(5, Math.min(12, sz * 0.07));
+
+      for (const key of hexes) {
+        const [q, r] = key.split(',').map(Number);
+        const latlngs = hexVerts(q, r).map(px2ll);
+
+        const poly = L.polygon(latlngs, {
+          color: '#378add', weight: 1.5,
+          fillColor: '#378add', fillOpacity: 0.2,
+          className: 'hex-poly'
+        }).addTo(hexLayer);
+
+        poly.on('mousedown', e => {
+          dragging = true;
+          dragStart = e.containerPoint.clone();
+          centerStart = { ...gridCenter };
+          map.dragging.disable();
+          L.DomEvent.stopPropagation(e);
+        });
+
+        poly.on('contextmenu', e => {
+          hexes.delete(key);
+          render(); updateCount();
+          L.DomEvent.stopPropagation(e);
+        });
+      }
+
+      for (const key of hexes) {
+        const [q, r] = key.split(',').map(Number);
+        const verts = hexVerts(q, r);
+
+        for (let i = 0; i < 6; i++) {
+          const nq = q + NBR[i][0], nr = r + NBR[i][1];
+          if (hexes.has(`${nq},${nr}`)) continue;
+
+          const v1 = verts[i], v2 = verts[(i + 1) % 6];
+          const mid = px2ll({ x: (v1.x + v2.x) / 2, y: (v1.y + v2.y) / 2 });
+
+          const marker = L.circleMarker(mid, {
+            radius: hr, weight: 1.5,
+            color: '#378add', fillColor: 'white', fillOpacity: 1
+          }).addTo(handleLayer);
+
+          marker.on('click', e => {
+            hexes.add(`${nq},${nr}`);
+            render(); updateCount();
+            L.DomEvent.stopPropagation(e);
+          });
+
+          marker.on('mouseover', () => marker.setStyle({ fillColor: '#378add' }));
+          marker.on('mouseout', () => marker.setStyle({ fillColor: 'white' }));
+        }
+      }
+
+      const refKey = hexes.values().next().value;
+      const [rq, rr] = refKey.split(',').map(Number);
+      const rll = px2ll(hexVerts(rq, rr)[0]);
+      const rHandle = L.circleMarker(rll, {
+        radius: 8, weight: 2,
+        color: '#c0392b', fillColor: '#e74c3c', fillOpacity: 0.85,
+        className: 'resize-handle'
+      }).addTo(resizeLayer);
+      rHandle.on('mousedown', e => {
+        resizing = true;
+        resizeRefCenter = hex2px(rq, rr);
+        map.dragging.disable();
+        L.DomEvent.stopPropagation(e);
+      });
+      rHandle.on('mouseover', () => rHandle.setStyle({ fillColor: '#c0392b' }));
+      rHandle.on('mouseout', () => rHandle.setStyle({ fillColor: '#e74c3c' }));
+    }
+
+    function updateCount() {
+      document.getElementById('count').textContent =
+        `${hexes.size} tile${hexes.size !== 1 ? 's' : ''}`;
+    }
+
+    // ── Drag grid ──────────────────────────────────────────────────────────────
+    map.on('mousemove', e => {
+      if (dragging) {
+        const dx = e.containerPoint.x - dragStart.x;
+        const dy = e.containerPoint.y - dragStart.y;
+        const sp = map.latLngToContainerPoint([centerStart.lat, centerStart.lng]);
+        const ll = map.containerPointToLatLng(L.point(sp.x + dx, sp.y + dy));
+        gridCenter = { lat: ll.lat, lng: ll.lng };
+        render();
+      }
+      if (resizing) {
+        const dx = e.containerPoint.x - resizeRefCenter.x;
+        const dy = e.containerPoint.y - resizeRefCenter.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        hexSize = Math.max(50, Math.round(dist * mpp() * 2));
+        document.getElementById('sizeVal').textContent = hexSize;
+        render();
+      }
+    });
+
+    map.on('mouseup', () => {
+      if (dragging) { dragging = false; map.dragging.enable(); }
+      if (resizing) { resizing = false; map.dragging.enable(); }
+    });
+
+    // ── First hex ──────────────────────────────────────────────────────────────
+    map.on('click', e => {
+      if (hexes.size > 0) return;
+      gridCenter = { lat: e.latlng.lat, lng: e.latlng.lng };
+      hexes.add('0,0');
+      document.getElementById('hint').style.display = 'none';
+      render(); updateCount();
+    });
+
+    map.on('zoomend', render);
+
+    // ── Controls ───────────────────────────────────────────────────────────────
+    document.getElementById('rotSlider').addEventListener('input', function () {
+      rotation = +this.value;
+      document.getElementById('rotVal').textContent = parseFloat(rotation.toFixed(1));
+      render();
+    });
+
+    // ── Export ─────────────────────────────────────────────────────────────────
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      if (!hexes.size) return alert('No tiles to export.');
+      const data = {
+        gridCenter, hexSize, rotation,
+        hexes: [...hexes].map(k => k.split(',').map(Number))
+      };
+      const a = Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)],
+          { type: 'application/json' })),
+        download: 'hex-region.json'
+      });
+      a.click();
+    });
+
+    // ── Import ─────────────────────────────────────────────────────────────────
+    document.getElementById('importBtn').addEventListener('click', () =>
+      document.getElementById('fileInput').click());
+
+    document.getElementById('fileInput').addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const fr = new FileReader();
+      fr.onload = ev => {
+        try {
+          const d = JSON.parse(ev.target.result);
+          gridCenter = d.gridCenter; hexSize = d.hexSize; rotation = d.rotation;
+          hexes = new Set(d.hexes.map(([q, r]) => `${q},${r}`));
+          document.getElementById('rotSlider').value = rotation;
+          document.getElementById('sizeVal').textContent = hexSize;
+          document.getElementById('rotVal').textContent = parseFloat(rotation.toFixed(1));
+          document.getElementById('hint').style.display = 'none';
+          map.setView([gridCenter.lat, gridCenter.lng], map.getZoom(), { animate: false });
+          render(); updateCount();
+        } catch { alert('Could not read JSON.'); }
+      };
+      fr.readAsText(file);
+      e.target.value = '';
+    });
+
+    // ── Clear ──────────────────────────────────────────────────────────────────
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      hexes.clear(); gridCenter = null;
+      hexLayer.clearLayers(); handleLayer.clearLayers();
+      document.getElementById('hint').style.display = 'block';
+      updateCount();
+    });
+  </script>
+</body>
+
+</html>

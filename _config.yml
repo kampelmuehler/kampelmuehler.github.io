@@ -10,7 +10,7 @@ locale                   : "en-US"
 title                    : "Moritz Kampelmühler"
 title_separator          : "-"
 name                     : &name "Moritz Kampelmühler"
-description              : &description "PhD student at Graz University of Technology"
+description              : &description "Deep Learning & Computer Vision Research Engineer"
 url                      : https://kampelmuehler.github.io # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : "" # the subpath of your site, e.g. "/blog"
 repository               : "kampelmuehler/kampelmuehler.github.io"
@@ -82,12 +82,12 @@ analytics:
 author:
   name             : "Moritz Kampelmühler"
   avatar           : "portrait.jpg"
-  bio              : "PhD student at Graz University of Technology"
+  bio              : "Deep Learning & Computer Vision Research Engineer"
   location         : "Graz, Austria"
   employer         :
   pubmed           : 
-  googlescholar    : "https://scholar.google.at/citations?user=XgtJoXQAAAAJ"
-  email            : "kampelmuehler@tugraz.at"
+  googlescholar    : # "https://scholar.google.at/citations?user=XgtJoXQAAAAJ"
+  email            : # "kampelmuehler@tugraz.at"
   researchgate     :  # example: "https://www.researchgate.net/profile/yourprofile"
   uri              : # "https://kampelmuehler.github.io"
   bitbucket        :
@@ -187,6 +187,9 @@ collections:
   talks:
     output: true
     permalink: /:collection/:path/
+  projects:
+    output: true
+    permalink: /:collection/:path/
 
 
 # Defaults
@@ -244,6 +247,14 @@ defaults:
       layout: talk
       author_profile: true
       share: true
+  # _projects
+  - scope:
+      path: ""
+      type: projects
+    values:
+      layout: none
+      author_profile: false
+      share: false
 
 # Sass/SCSS
 sass:
