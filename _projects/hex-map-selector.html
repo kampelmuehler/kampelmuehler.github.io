@@ -391,8 +391,8 @@ date: 2026-04-06
     // ── Clear ──────────────────────────────────────────────────────────────────
     document.getElementById('clearBtn').addEventListener('click', () => {
       hexes.clear(); gridCenter = null;
-      hexLayer.clearLayers(); handleLayer.clearLayers();
-      document.getElementById('sizeVal').textContent = '';
+      hexLayer.clearLayers(); handleLayer.clearLayers(); resizeLayer.clearLayers();
+      document.getElementById('sizeVal').textContent = '-';
       document.getElementById('hint').textContent = 'Click on the map to place the first hex';
       updateCount();
     });
