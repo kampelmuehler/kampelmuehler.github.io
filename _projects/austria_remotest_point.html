@@ -157,7 +157,7 @@ date: 2026-04-09
             }
 
             #search-input {
-                padding: 10px 14px;
+                padding: 10px 36px 10px 14px;
                 font-size: 16px;
             }
         }
@@ -221,20 +221,49 @@ date: 2026-04-09
         }
 
         /* Search */
+        #search-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
         #search-input {
             width: 100%;
-            padding: 7px 14px;
+            padding: 7px 36px 7px 14px;
             background: #181825;
             color: #cdd6f4;
             border: none;
             border-bottom: 1px solid #313244;
             outline: none;
             font-size: 13px;
-            flex-shrink: 0;
         }
 
         #search-input::placeholder {
             color: #6c7086;
+        }
+
+        #search-clear {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6c7086;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: none;
+            line-height: 1;
+        }
+
+        #search-clear:hover {
+            color: #cdd6f4;
+            background: #313244;
+        }
+
+        #search-clear.visible {
+            display: block;
         }
 
         /* Lists */
@@ -371,7 +400,10 @@ date: 2026-04-09
                 for
                 details and a Google Maps link.
             </div>
-            <input id="search-input" type="text" placeholder="Search states or districts…" />
+            <div id="search-wrapper">
+                <input id="search-input" type="text" placeholder="Search states or districts…" />
+                <button id="search-clear" aria-label="Clear search">✕</button>
+            </div>
             <div id="info-banner">Select a region to visualise it on the map.</div>
             <div id="list-container">
                 <div class="list-section-header">States</div>
@@ -398,11 +430,24 @@ date: 2026-04-09
         let mapLayers = [];
 
         // ── Map initialisation ─────────────────────────────────────────────────────
-        const map = L.map('map').setView([47.5, 14.0], 7);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            maxZoom: 19
-        }).addTo(map);
+        const map = L.map('map', { zoomControl: false }).setView([47.5, 14.0], 7);
+
+        const baseLayers = {
+            'Standard': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
+            }),
+            'Topographic': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+                maxZoom: 17
+            }),
+            'ESRI Topo': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19
+            })
+        };
+        baseLayers['Topographic'].addTo(map);
+        L.control.layers(baseLayers, {}, { position: 'topright', collapsed: true }).addTo(map);
 
         // Legend
         const legend = L.control({ position: 'bottomright' });
@@ -412,7 +457,7 @@ date: 2026-04-09
                 '<b>Legend</b><br>' +
                 '<span class="legend-dot" style="background:#fc3069"></span>Remotest point<br>' +
                 '<span class="legend-dot" style="background:#a6e3a1"></span>Nearest building<br>' +
-                '<span class="legend-line" style="background:#fc3069;opacity:.7;border:1px dashed #fc3069"></span>Radius circle<br>' +
+                '<span class="legend-line" style="background:repeating-linear-gradient(90deg,#fc3069 0,#fc3069 6px,transparent 6px,transparent 11px)"></span>Radius circle<br>' +
                 '<span class="legend-line" style="background:#e61010"></span>Boundary';
             return d;
         };
@@ -583,8 +628,19 @@ date: 2026-04-09
         });
 
         // ── Search ─────────────────────────────────────────────────────────────────
-        document.getElementById('search-input').addEventListener('input', e => {
+        const searchInput = document.getElementById('search-input');
+        const searchClear = document.getElementById('search-clear');
+
+        searchInput.addEventListener('input', e => {
             buildLists(e.target.value);
+            searchClear.classList.toggle('visible', e.target.value.length > 0);
+        });
+
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            buildLists('');
+            searchClear.classList.remove('visible');
+            searchInput.focus();
         });
 
         // ── Mobile sidebar toggle ──────────────────────────────────────────────────
@@ -602,6 +658,7 @@ date: 2026-04-09
         document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
 
         // ── Init ───────────────────────────────────────────────────────────────────
+        searchInput.value = '';
         buildLists('');
 
         // Open the sidebar by default on mobile
