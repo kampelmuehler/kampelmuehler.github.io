@@ -11,6 +11,7 @@ date: 2026-04-06
 
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hex Region</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <style>
@@ -80,6 +81,21 @@ date: 2026-04-06
       accent-color: #378add;
     }
 
+    input[type=number]#sizeInput {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 14px;
+      color: #333;
+      -moz-appearance: textfield;
+    }
+
+    input[type=number]#sizeInput::-webkit-inner-spin-button,
+    input[type=number]#sizeInput::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+
     .btn-row {
       display: flex;
       gap: 6px;
@@ -109,6 +125,16 @@ date: 2026-04-06
       background: #fff0f0;
     }
 
+    button.remove-active {
+      background: #fff0f0;
+      border-color: #f0a0a0;
+      color: #c00;
+    }
+
+    #map.remove-mode .hex-poly {
+      cursor: crosshair !important;
+    }
+
     #hint {
       position: absolute;
       bottom: 32px;
@@ -121,13 +147,98 @@ date: 2026-04-06
       border-radius: 20px;
       font-size: 14px;
       pointer-events: none;
-      white-space: nowrap;
+      max-width: 90vw;
+      text-align: center;
     }
 
     #count {
       font-size: 13px;
       color: #888;
-      text-align: right;
+    }
+
+    #panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #panelToggle {
+      display: none;
+      flex: none;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #555;
+    }
+
+    #panelToggle:hover {
+      background: #e8e8e8;
+    }
+
+    #hint.hint-hidden {
+      display: none;
+    }
+
+    @media (max-width: 599px) {
+      #panel {
+        top: auto;
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 14px 14px 0 0;
+        flex-direction: column;
+        padding: 10px 14px 14px;
+        gap: 8px;
+      }
+
+      #panel-header {
+        flex: none;
+      }
+
+      #panelToggle {
+        display: inline-flex;
+        align-items: center;
+      }
+
+      #panel-body {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      #panel.collapsed #panel-body {
+        display: none;
+      }
+
+      #panel .row {
+        flex: 1 1 130px;
+      }
+
+      #panel .btn-row {
+        flex: none;
+      }
+
+      #removeBtn,
+      #hintToggle,
+      #clearBtn {
+        flex: 1;
+      }
+
+      #hint {
+        bottom: auto;
+        top: 12px;
+      }
     }
   </style>
 </head>
@@ -136,35 +247,48 @@ date: 2026-04-06
   <div id="map"></div>
 
   <div id="panel">
-    <strong>Hex Region</strong>
-    <div class="row">
-      <div class="lbl"><span>Size</span><span><b id="sizeVal">-</b> m</span></div>
-      <div style="font-size:12px;color:#888;">Drag <span style="color:#e74c3c;">&#9679;</span> handle on tile to resize
+    <div id="panel-header">
+      <strong>Hex Region</strong>
+      <div id="header-right">
+        <span id="count">0 tiles</span>
+        <button id="panelToggle" aria-label="Collapse panel">&#9660;</button>
       </div>
     </div>
-    <div class="row">
-      <div class="lbl"><span>Rotation</span><span><b id="rotVal">0</b>°</span></div>
-      <input type="range" id="rotSlider" min="0" max="60" step="0.5" value="0">
+    <div id="panel-body">
+      <div class="row">
+        <div class="lbl"><span>Size (m)</span></div>
+        <input type="number" id="sizeInput" min="50" max="500000" step="50" value="5000" placeholder="metres">
+        <div style="font-size:12px;color:#888;">Or drag <span style="color:#e74c3c;">&#9679;</span> handle on tile
+        </div>
+      </div>
+      <div class="row">
+        <div class="lbl"><span>Rotation</span><span><b id="rotVal">0</b>°</span></div>
+        <input type="range" id="rotSlider" min="0" max="60" step="0.5" value="0">
+      </div>
+      <div class="btn-row">
+        <button id="exportBtn">Export</button>
+        <button id="importBtn">Import</button>
+      </div>
+      <button id="removeBtn">🗑️ Remove tiles</button>
+      <div class="btn-row">
+        <button id="hintToggle">Hide hints</button>
+        <button class="danger" id="clearBtn">Clear all</button>
+      </div>
+      <input type="file" id="fileInput" accept=".json" style="display:none">
     </div>
-    <div id="count">0 tiles</div>
-    <div class="btn-row">
-      <button id="exportBtn">Export</button>
-      <button id="importBtn">Import</button>
-    </div>
-    <button class="danger" id="clearBtn">Clear all</button>
-    <input type="file" id="fileInput" accept=".json" style="display:none">
   </div>
   <div id="hint">Click on the map to place the first hex</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
-    const map = L.map('map').setView([47.072905447028624, 15.440775415140212], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19
+    const map = L.map('map', { zoomControl: false }).setView([47.072905447028624, 15.440775415140212], 13);
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+      maxZoom: 17
     }).addTo(map);
 
     // ── State ──────────────────────────────────────────────────────────────────
+    let removeMode = false;
     let hexes = new Set();   // "q,r" flat-top axial coordinates
     let gridCenter = null;        // { lat, lng }  — geographic anchor
     let hexSize = 5000;        // metres (long diagonal = tip-to-tip = 2 × circumradius)
@@ -214,11 +338,14 @@ date: 2026-04-06
     // ── Rendering ──────────────────────────────────────────────────────────────
     let dragging = false, dragStart = null, centerStart = null;
     let resizing = false, resizeRefCenter = null;
+    let resizeHandleAxial = null;
+    let activeTouchId = null;
 
     function render() {
       hexLayer.clearLayers();
       handleLayer.clearLayers();
       resizeLayer.clearLayers();
+      resizeHandleAxial = null;
       if (!gridCenter || hexes.size === 0) return;
 
       const sz = hexSize / mpp();
@@ -235,6 +362,18 @@ date: 2026-04-06
         }).addTo(hexLayer);
 
         poly.on('mousedown', e => {
+          if (removeMode) {
+            hexes.delete(key);
+            if (hexes.size === 0) {
+              gridCenter = null;
+              document.getElementById('sizeInput').value = 5000;
+              hexSize = 5000;
+              document.getElementById('hint').textContent = 'Click on the map to place the first hex';
+            }
+            render(); updateCount();
+            L.DomEvent.stopPropagation(e);
+            return;
+          }
           dragging = true;
           dragStart = e.containerPoint.clone();
           centerStart = { ...gridCenter };
@@ -246,13 +385,14 @@ date: 2026-04-06
           hexes.delete(key);
           if (hexes.size === 0) {
             gridCenter = null;
-            document.getElementById('sizeVal').textContent = '-';
+            document.getElementById('sizeInput').value = 5000;
             hexSize = 5000;
             document.getElementById('hint').textContent = 'Click on the map to place the first hex';
           }
           render(); updateCount();
           L.DomEvent.stopPropagation(e);
         });
+
       }
 
       for (const key of hexes) {
@@ -284,6 +424,7 @@ date: 2026-04-06
 
       const refKey = hexes.values().next().value;
       const [rq, rr] = refKey.split(',').map(Number);
+      resizeHandleAxial = { q: rq, r: rr };
       const rll = px2ll(hexVerts(rq, rr)[0]);
       const rHandle = L.circleMarker(rll, {
         radius: 8, weight: 2,
@@ -307,6 +448,7 @@ date: 2026-04-06
 
     // ── Drag grid ──────────────────────────────────────────────────────────────
     map.on('mousemove', e => {
+      if (activeTouchId !== null) return;
       if (dragging) {
         const dx = e.containerPoint.x - dragStart.x;
         const dy = e.containerPoint.y - dragStart.y;
@@ -320,23 +462,97 @@ date: 2026-04-06
         const dy = e.containerPoint.y - resizeRefCenter.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         hexSize = Math.max(50, Math.round(dist * mpp() * 2));
-        document.getElementById('sizeVal').textContent = hexSize;
+        document.getElementById('sizeInput').value = hexSize;
         render();
       }
     });
 
     map.on('mouseup', () => {
+      if (activeTouchId !== null) return;
       if (dragging) { dragging = false; map.dragging.enable(); }
       if (resizing) { resizing = false; map.dragging.enable(); }
     });
+
+    // ── Touch drag / resize (window capture phase) ────────────────────────────
+    window.addEventListener('touchstart', e => {
+      if (activeTouchId !== null) return; // already tracking a touch
+      const t = e.changedTouches[0]; if (!t) return;
+
+      // Priority 1: resize handle (proximity hit-test)
+      if (resizeHandleAxial && gridCenter && hexes.size > 0) {
+        const cp = map.mouseEventToContainerPoint(t);
+        const handlePx = hexVerts(resizeHandleAxial.q, resizeHandleAxial.r)[0];
+        if (Math.hypot(cp.x - handlePx.x, cp.y - handlePx.y) < 22) {
+          activeTouchId = t.identifier;
+          resizing = true;
+          resizeRefCenter = hex2px(resizeHandleAxial.q, resizeHandleAxial.r);
+          map.dragging.disable();
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
+      }
+
+      // Priority 2: tile drag — intercept touches on any hex polygon
+      const tgt = e.target;
+      if (!removeMode && tgt && tgt.classList && tgt.classList.contains('hex-poly')) {
+        if (!gridCenter || hexes.size === 0) return;
+        activeTouchId = t.identifier;
+        dragging = true;
+        dragStart = map.mouseEventToContainerPoint(t);
+        centerStart = { ...gridCenter };
+        map.dragging.disable();
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!dragging && !resizing) return;
+      const t = Array.from(e.changedTouches).find(ct => ct.identifier === activeTouchId);
+      if (!t) return;
+      const cp = map.mouseEventToContainerPoint(t);
+      if (dragging) {
+        const dx = cp.x - dragStart.x;
+        const dy = cp.y - dragStart.y;
+        const sp = map.latLngToContainerPoint([centerStart.lat, centerStart.lng]);
+        const ll = map.containerPointToLatLng(L.point(sp.x + dx, sp.y + dy));
+        gridCenter = { lat: ll.lat, lng: ll.lng };
+        render();
+      }
+      if (resizing) {
+        const dx = cp.x - resizeRefCenter.x;
+        const dy = cp.y - resizeRefCenter.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        hexSize = Math.max(50, Math.round(dist * mpp() * 2));
+        document.getElementById('sizeInput').value = hexSize;
+        render();
+      }
+      e.preventDefault();
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchend', e => {
+      if (!dragging && !resizing) return;
+      const t = Array.from(e.changedTouches).find(ct => ct.identifier === activeTouchId);
+      if (!t) return;
+      activeTouchId = null;
+      if (dragging) { dragging = false; map.dragging.enable(); }
+      if (resizing) { resizing = false; map.dragging.enable(); }
+    }, { capture: true });
+
+    window.addEventListener('touchcancel', () => {
+      activeTouchId = null;
+      if (dragging) { dragging = false; map.dragging.enable(); }
+      if (resizing) { resizing = false; map.dragging.enable(); }
+    }, { capture: true });
 
     // ── First hex ──────────────────────────────────────────────────────────────
     map.on('click', e => {
       if (hexes.size > 0) return;
       gridCenter = { lat: e.latlng.lat, lng: e.latlng.lng };
       hexes.add('0,0');
-      document.getElementById('sizeVal').textContent = hexSize;
-      document.getElementById('hint').textContent = 'Click on an edge to add a tile. Right-click a tile to remove it.';
+      document.getElementById('sizeInput').value = hexSize;
+      document.getElementById('hint').textContent = 'Click an edge to add a tile · use Remove mode or right click to delete';
       render(); updateCount();
     });
 
@@ -347,6 +563,16 @@ date: 2026-04-06
       rotation = +this.value;
       document.getElementById('rotVal').textContent = parseFloat(rotation.toFixed(1));
       render();
+    });
+
+    document.getElementById('sizeInput').addEventListener('change', function () {
+      const v = parseInt(this.value, 10);
+      if (!isNaN(v) && v >= 50) {
+        hexSize = v;
+        if (gridCenter) render();
+      } else {
+        this.value = hexSize;
+      }
     });
 
     // ── Export ─────────────────────────────────────────────────────────────────
@@ -377,9 +603,9 @@ date: 2026-04-06
           gridCenter = d.gridCenter; hexSize = d.hexSize; rotation = d.rotation;
           hexes = new Set(d.hexes.map(([q, r]) => `${q},${r}`));
           document.getElementById('rotSlider').value = rotation;
-          document.getElementById('sizeVal').textContent = hexSize;
+          document.getElementById('sizeInput').value = hexSize;
           document.getElementById('rotVal').textContent = parseFloat(rotation.toFixed(1));
-          document.getElementById('hint').textContent = 'Right-click a tile to remove it';
+          document.getElementById('hint').textContent = 'Click an edge to add a tile · use Remove mode to delete';
           map.setView([gridCenter.lat, gridCenter.lng], map.getZoom(), { animate: false });
           render(); updateCount();
         } catch { alert('Could not read JSON.'); }
@@ -388,12 +614,40 @@ date: 2026-04-06
       e.target.value = '';
     });
 
+    // ── Panel collapse (mobile) ───────────────────────────────────────────────────
+    document.getElementById('panelToggle').addEventListener('click', () => {
+      const collapsed = document.getElementById('panel').classList.toggle('collapsed');
+      document.getElementById('panelToggle').innerHTML = collapsed ? '&#9650;' : '&#9660;';
+    });
+
+    // ── Hint toggle ─────────────────────────────────────────────────────────────
+    let hintsVisible = true;
+    document.getElementById('hintToggle').addEventListener('click', () => {
+      hintsVisible = !hintsVisible;
+      document.getElementById('hint').classList.toggle('hint-hidden', !hintsVisible);
+      document.getElementById('hintToggle').textContent = hintsVisible ? 'Hide hints' : 'Show hints';
+    });
+
+    // ── Remove mode ────────────────────────────────────────────────────────────
+    document.getElementById('removeBtn').addEventListener('click', () => {
+      removeMode = !removeMode;
+      const btn = document.getElementById('removeBtn');
+      btn.classList.toggle('remove-active', removeMode);
+      btn.textContent = removeMode ? '🗑️ Remove: ON' : '🗑️ Remove tiles';
+      document.getElementById('map').classList.toggle('remove-mode', removeMode);
+    });
+
     // ── Clear ──────────────────────────────────────────────────────────────────
     document.getElementById('clearBtn').addEventListener('click', () => {
       hexes.clear(); gridCenter = null;
       hexLayer.clearLayers(); handleLayer.clearLayers(); resizeLayer.clearLayers();
-      document.getElementById('sizeVal').textContent = '-';
+      document.getElementById('sizeInput').value = 5000;
+      hexSize = 5000;
       document.getElementById('hint').textContent = 'Click on the map to place the first hex';
+      removeMode = false;
+      document.getElementById('removeBtn').classList.remove('remove-active');
+      document.getElementById('removeBtn').textContent = '🗑️ Remove tiles';
+      document.getElementById('map').classList.remove('remove-mode');
       updateCount();
     });
   </script>
