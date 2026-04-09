@@ -22,12 +22,17 @@ date: 2026-04-09
         }
 
         body {
-            display: flex;
-            height: 100vh;
             font-family: system-ui, sans-serif;
             font-size: 14px;
+        }
+
+        #app {
+            position: fixed;
+            inset: 0;
+            display: flex;
             overflow: hidden;
             background: #1e1e2e;
+            color: #cdd6f4;
         }
 
         /* ── Sidebar ──────────────────────────────────────────────────────────── */
@@ -84,7 +89,7 @@ date: 2026-04-09
         #sidebar-toggle {
             display: none;
             position: fixed;
-            top: 12px;
+            bottom: 12px;
             left: 12px;
             z-index: 1100;
             background: rgba(30, 30, 46, 0.92);
@@ -111,7 +116,7 @@ date: 2026-04-09
                 position: fixed;
                 top: 0;
                 left: 0;
-                height: 100dvh;
+                height: 100%;
                 width: min(85vw, 360px) !important;
                 max-width: none !important;
                 z-index: 1000;
@@ -129,14 +134,12 @@ date: 2026-04-09
                 display: block;
             }
 
-            #map {
-                width: 100%;
-                height: 100dvh;
-                flex: none;
-            }
-
             #sidebar-toggle {
                 display: block;
+            }
+
+            #sidebar.open~#sidebar-toggle {
+                display: none;
             }
 
             #sidebar-close {
@@ -347,38 +350,41 @@ date: 2026-04-09
 
 <body>
 
-    <div id="sidebar">
-        <div id="sidebar-header">
-            <div id="sidebar-title-row">
-                <h1>Austria – Remotest Points</h1>
-                <button id="sidebar-close" aria-label="Close sidebar">✕</button>
+    <div id="app">
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <div id="sidebar-title-row">
+                    <h1>Austria – Remotest Points</h1>
+                    <button id="sidebar-close" aria-label="Close sidebar">✕</button>
+                </div>
+                <div id="mode-toggle">
+                    <button class="mode-btn active" data-mode="radius_within_boundary">
+                        Full radius within
+                    </button>
+                    <button class="mode-btn" data-mode="point_within_region">
+                        Remotest point within
+                    </button>
+                </div>
             </div>
-            <div id="mode-toggle">
-                <button class="mode-btn active" data-mode="radius_within_boundary">
-                    Full radius within
-                </button>
-                <button class="mode-btn" data-mode="point_within_region">
-                    Remotest point within
-                </button>
+            <div id="usage-hint">
+                Toggle between modes, then click a region to show its remotest point on the map. You can click the point
+                for
+                details and a Google Maps link.
+            </div>
+            <input id="search-input" type="text" placeholder="Search states or districts…" />
+            <div id="info-banner">Select a region to visualise it on the map.</div>
+            <div id="list-container">
+                <div class="list-section-header">States</div>
+                <div id="states-list"></div>
+                <div class="list-section-header">Districts</div>
+                <div id="districts-list"></div>
             </div>
         </div>
-        <div id="usage-hint">
-            Toggle between modes, then click a region to show its remotest point on the map. You can click the point for
-            details and a Google Maps link.
-        </div>
-        <input id="search-input" type="text" placeholder="Search states or districts…" />
-        <div id="info-banner">Select a region to visualise it on the map.</div>
-        <div id="list-container">
-            <div class="list-section-header">States</div>
-            <div id="states-list"></div>
-            <div class="list-section-header">Districts</div>
-            <div id="districts-list"></div>
-        </div>
-    </div>
 
-    <div id="map"></div>
-    <div id="sidebar-overlay"></div>
-    <button id="sidebar-toggle" aria-label="Open list">☰</button>
+        <div id="map"></div>
+        <div id="sidebar-overlay"></div>
+        <button id="sidebar-toggle" aria-label="Open list">☰</button>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -597,6 +603,12 @@ date: 2026-04-09
 
         // ── Init ───────────────────────────────────────────────────────────────────
         buildLists('');
+
+        // Open the sidebar by default on mobile
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            document.getElementById('sidebar').classList.add('open');
+            document.getElementById('sidebar-overlay').classList.add('open');
+        }
     </script>
 
 </body>
